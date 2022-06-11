@@ -1,0 +1,5 @@
+bitcoin
+colorama
+requests
+bitcoin
+mmh3

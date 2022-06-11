@@ -8,7 +8,7 @@
 
 from multiprocessing import Pool, freeze_support, cpu_count
 import sys, time, argparse, logging
-from bloomfilter import BloomFilter
+from filter import BloomFilter
 import signal
 import bitcoin, requests, os
 import secp256k1_lib
@@ -21,7 +21,7 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class inf:
-    version:str = '* PY-Brainflayer v0.0.1b *'
+    version:str = '* PY-Brainflayer v0.0.2b *'
     th = 1
     in_file = ''
     balance:bool = False
@@ -91,7 +91,7 @@ def get_balance(address):
             return int(response.json()['n_tx']), float(response.json()['final_balance'])
     except:
         logger_err.error('[E][BRAIN] NOT connect balance server')
-        print('[E][BTC, 44, 32] NOT connect balance server')
+        print('[E][BRAIN] NOT connect balance server')
         if inf.bal_err < 10:
             inf.bal_err += 1
         else:
