@@ -21,7 +21,7 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class inf:
-    version:str = '* PY-Brainflayer v0.0.2b *'
+    version:str = '* PY-Brainflayer v0.0.3b *'
     th = 1
     in_file = ''
     balance:bool = False
@@ -177,25 +177,25 @@ if __name__ == "__main__":
 
     l = []
     inf.bf = load_BF(inf.bf_dir)
-    print('BF LOADED')
+    print('BF загружен...')
     file = open(inf.in_file, "r")
-    print('GO LOADED SEMPLE')
+    print('Загрузка словаря...')
     co = 0
     try:
         while True:
             l = []
             st = time.time()
-            for i in range(300000):
+            for i in range(50000):
                 line = file.readline().strip()
                 if not line:
                     sys.exit()
                 l.append(line)
 
-            print(line.strip())
+            #print(line.strip())
             with Pool(inf.th, init_worker) as pool:
                 results = pool.map(bw, l)
                 #print(results)
-                for res1 in range(300000):
+                for res1 in range(50000):
                     for res2 in range(12):
                         co +=1
                         if results[res1][res2] in inf.bf:
@@ -207,7 +207,7 @@ if __name__ == "__main__":
                             # addr_cbc = secp256k1_lib.hash_to_address(2, False, bip44_h160_c)
                             print(f' \n FOUND ------------------------------------- \n')
 
-                print(f'time{time.time()-st}, count{co}, speed{int(co/(time.time()-st))}')
+                print(f'time: {time.time()-st:.2f}, count: {co}, speed: {int(co/(time.time()-st))}/sec')
                 co = 0
     except (KeyboardInterrupt, SystemExit):
         print ("Caught KeyboardInterrupt, terminating workers")
