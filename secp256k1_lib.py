@@ -8,7 +8,8 @@ import platform
 import os
 import sys
 import ctypes
-
+import math
+import pickle
 
 ###############################################################################
 N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141
@@ -150,7 +151,13 @@ ice.point_loop_addition.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.
 #==============================================================================
 ice.point_vector_addition.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p] # num,upubs1,upubs2,ret
 #==============================================================================
+ice.point_sequential_increment_P2.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_char_p] # num,upub1,ret
+#==============================================================================
+ice.point_sequential_increment_P2_mcpu.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p] # num,upub1,mcpu,ret
+#==============================================================================
 ice.point_sequential_increment.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_char_p] # num,upub1,ret
+#==============================================================================
+ice.point_sequential_decrement.argtypes = [ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_char_p] # num,upub1,ret
 #==============================================================================
 ice.pubkeyxy_to_ETH_address.argtypes = [ctypes.c_char_p] # upub_xy
 ice.pubkeyxy_to_ETH_address.restype = ctypes.c_void_p
@@ -167,8 +174,24 @@ ice.privatekey_group_to_ETH_address.restype = ctypes.c_void_p
 #==============================================================================
 ice.privatekey_group_to_ETH_address_bytes.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p] # pvk,m,ret
 #==============================================================================
+ice.init_P2_Group.argtypes = [ctypes.c_char_p] # upub
+#==============================================================================
 ice.free_memory.argtypes = [ctypes.c_void_p] # pointer
 #==============================================================================
+ice.bloom_check_add.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_ulonglong, ctypes.c_ubyte, ctypes.c_char_p] #buff, len, 0_1, _bits, _hashes, _bf
+ice.bloom_check_add.restype = ctypes.c_int
+#==============================================================================
+ice.bloom_batch_add.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_ulonglong, ctypes.c_ubyte, ctypes.c_char_p] #chunk, buff, len, 0_1, _bits, _hashes, _bf
+#==============================================================================
+ice.bloom_check_add_mcpu.argtypes = [ctypes.c_void_p, ctypes.c_ulonglong, ctypes.c_char_p, ctypes.c_int, ctypes.c_int, ctypes.c_ulonglong, ctypes.c_ubyte, ctypes.c_char_p] #buff, num_items, found_array, len, 0_1, _bits, _hashes, _bf
+#==============================================================================
+ice.test_bit_set_bit.argtypes = [ctypes.c_char_p, ctypes.c_ulonglong, ctypes.c_int] #_bf, _bits, 0_1
+#==============================================================================
+#==============================================================================
+ice.Load_data_to_memory.argtypes = [ctypes.c_char_p, ctypes.c_bool] #sorted_bin_file_h160, verbose
+#==============================================================================
+ice.check_collision.argtypes = [ctypes.c_char_p] #h160
+ice.check_collision.restype = ctypes.c_bool #True or False
 
 ice.init_secp256_lib()
 #==============================================================================
@@ -176,7 +199,7 @@ ice.init_secp256_lib()
 
 
 def version():
-    ice.version()
+    ice.version()   
 #==============================================================================
 def _scalar_multiplication(pvk_int):
     ''' Integer value passed to function. 65 bytes uncompressed pubkey output '''
@@ -205,10 +228,7 @@ def scalar_multiplication(pvk_int):
 #==============================================================================
 def point_multiplication(k, P):
     ''' k=scalar. P = Input Point. Output is 65 bytes uncompressed pubkey '''
-    if type(P) == int:
-        tmp = k
-        k = P
-        P = tmp
+    if type(P) == int: k,P = P,k
     def bits(k):
         while k:
             yield k & 1
@@ -252,6 +272,9 @@ def _point_doubling(pubkey_bytes):
 def point_doubling(pubkey_bytes):
     res = _point_doubling(pubkey_bytes)
     return bytes(bytearray(res))
+#==============================================================================
+def init_P2_Group(pubkey_bytes):
+    ice.init_P2_Group(pubkey_bytes)
 #==============================================================================
 def privatekey_to_coinaddress(coin_type, addr_type, iscompressed, pvk_int):
     # type = 0 [p2pkh],  1 [p2sh],  2 [bech32]
@@ -412,12 +435,18 @@ def btc_pvk_to_wif(pvk, is_compressed=True):
         return b58_encode(inp + res2[:4])
     else: return inp
 #==============================================================================
+def checksum(inp):
+    ''' Input string output double sha256 checksum 4 bytes'''
+    res = get_sha256(inp)
+    res2 = get_sha256(res)
+    return res2[:4]
+#==============================================================================
 def fl(sstr, length=64):
     ''' Fill input to exact 32 bytes. If input is int or str the return is str. if input is bytes return is bytes'''
     if type(sstr) == int: fixed = hex(sstr)[2:].zfill(length)
     elif type(sstr) == str: fixed = sstr[2:].zfill(length) if sstr[:2].lower() == '0x' else sstr.zfill(length)
     elif type(sstr) == bytes: fixed = (b'\x00') * (32 - len(sstr)) + sstr
-    else: print("[Error] Input format [Integer] [Hex] [Bytes] allowed only")
+    else: print("[Error] Input format [Integer] [Hex] [Bytes] allowed only. Detected : ", type(sstr))
     return fixed
 #==============================================================================
 def pbkdf2_hmac_sha512_dll(words):
@@ -491,9 +520,29 @@ def _point_vector_addition(num, pubkeys1_bytes, pubkeys2_bytes):
     ice.point_vector_addition(num, pubkeys1_bytes, pubkeys2_bytes, res)
     return res
 def point_vector_addition(num, pubkeys1_bytes, pubkeys2_bytes):
-    ''' Adding two array of points of equal length. No Zero Point handling '''
+    ''' Adding two array of points of equal length. '''
     if num <= 0: num = 1
     res = _point_vector_addition(num, pubkeys1_bytes, pubkeys2_bytes)
+    return bytes(bytearray(res))
+#==============================================================================
+def _point_sequential_increment_P2(num, pubkey1_bytes):
+    res = (b'\x00') * (65 * num)
+    ice.point_sequential_increment_P2(num, pubkey1_bytes, res)
+    return res
+def point_sequential_increment_P2(num, pubkey1_bytes):
+    ''' This is the fastest implementation to add point P2 in the given Point sequentially.'''
+    if num <= 0: num = 1
+    res = _point_sequential_increment_P2(num, pubkey1_bytes)
+    return bytes(bytearray(res))
+#==============================================================================
+def _point_sequential_increment_P2_mcpu(num, pubkey1_bytes, mcpu):
+    res = (b'\x00') * (65 * num)
+    ice.point_sequential_increment_P2_mcpu(num, pubkey1_bytes, mcpu, res)
+    return res
+def point_sequential_increment_P2_mcpu(num, pubkey1_bytes, mcpu=os.cpu_count()):
+    ''' This is the fastest multi CPU implementation to add point P2 in the given Point sequentially. Threads are Not optimised yet'''
+    if num <= 0: num = 1
+    res = _point_sequential_increment_P2_mcpu(num, pubkey1_bytes, mcpu)
     return bytes(bytearray(res))
 #==============================================================================
 def _point_sequential_increment(num, pubkey1_bytes):
@@ -501,11 +550,7 @@ def _point_sequential_increment(num, pubkey1_bytes):
     ice.point_sequential_increment(num, pubkey1_bytes, res)
     return res
 def point_sequential_increment(num, pubkey1_bytes):
-    ''' This is the fastest implementation.
-    Remember, DONT use it to increment from very initial values of pubkey1 example 1 to 500.
-    The results are valid if the pubkey1_bytes are corresponding to the pvk > num.
-    For those inital values a slighly slower, point_loop_addition can be used.
-    No Zero Point handling'''
+    ''' This is the fastest implementation using G'''
     if num <= 0: num = 1
     res = _point_sequential_increment(num, pubkey1_bytes)
     return bytes(bytearray(res))
@@ -515,11 +560,7 @@ def _point_sequential_decrement(num, pubkey1_bytes):
     ice.point_sequential_decrement(num, pubkey1_bytes, res)
     return res
 def point_sequential_decrement(num, pubkey1_bytes):
-    ''' This is the fastest implementation.
-    Remember, DONT use it to increment from very initial values of pubkey1 example 1 to 500.
-    The results are valid if the pubkey1_bytes are corresponding to the pvk > num.
-    For those inital values a slighly slower, point_loop_subtraction can be used.
-    No Zero Point handling'''
+    ''' This is the fastest implementation using -G.'''
     if num <= 0: num = 1
     res = _point_sequential_decrement(num, pubkey1_bytes)
     return bytes(bytearray(res))
@@ -530,7 +571,7 @@ def pubkey_to_ETH_address(pubkey_bytes):
     res = ice.pubkeyxy_to_ETH_address(xy)
     addr = (ctypes.cast(res, ctypes.c_char_p).value).decode('utf8')
     ice.free_memory(res)
-    return addr
+    return '0x'+addr
 #==============================================================================
 def _pubkey_to_ETH_address_bytes(xy):
     res = (b'\x00') * 20
@@ -549,7 +590,7 @@ def privatekey_to_ETH_address(pvk_int):
     res = ice.privatekey_to_ETH_address(pass_int_value)
     addr = (ctypes.cast(res, ctypes.c_char_p).value).decode('utf8')
     ice.free_memory(res)
-    return addr
+    return '0x'+addr
 #==============================================================================
 def _privatekey_to_ETH_address_bytes(pass_int_value):
     res = (b'\x00') * 20
@@ -588,3 +629,98 @@ def privatekey_group_to_ETH_address_bytes(pvk_int, m):
     res = _privatekey_group_to_ETH_address_bytes(start_pvk, m)
     return bytes(bytearray(res))
 #==============================================================================
+def bloom_check_add_mcpu(bigbuff, num_items, sz, check_add, bloom_bits, bloom_hashes, bloom_filter):
+    found_array = (b'\x00') * num_items
+#    sz = 32; check_add = 0 for check and 1 for add
+    ice.bloom_check_add_mcpu(bigbuff, num_items, found_array, sz, check_add, bloom_bits, bloom_hashes, bloom_filter)
+    return found_array
+#==============================================================================
+def to_cpub(pub_hex):
+    P = pub_hex
+    if len(pub_hex) > 70:
+        P = '02' + pub_hex[2:66] if int(pub_hex[66:],16)%2 == 0 else '03' + pub_hex[2:66]
+    return P
+#==============================================================================
+def point_to_cpub(pubkey_bytes):
+    P = pubkey_bytes.hex()
+    if len(P) > 70:
+        P = '02' + P[2:66] if int(P[66:],16)%2 == 0 else '03' + P[2:66]
+    return P
+#==============================================================================
+def pub2upub(pub_hex):
+    ''' Covert [C or U] pubkey to Point'''
+    x = pub_hex[2:66]
+    if len(pub_hex) < 70:
+        y = get_x_to_y(x, int(pub_hex[:2],16)%2 == 0).hex()
+    else:
+        y = pub_hex[66:].zfill(64)
+    return bytes.fromhex('04'+ x + y)
+#==============================================================================
+def bloom_para(_items, _fp = 0.000001):
+    _bits = math.ceil((_items * math.log(_fp)) / math.log(1 / pow(2, math.log(2))))
+    if _bits % 8: _bits = 8*(1 + (_bits//8))
+    _hashes = round((_bits / _items) * math.log(2))
+    return _bits, _hashes
+#==============================================================================
+def Fill_in_bloom(inp_list, _fp = 0.000001):
+    _bits, _hashes = bloom_para(len(inp_list), _fp)
+    _bf = (b'\x00') * (_bits//8)
+    for line in inp_list:
+        if type(line) != bytes: tt = str(line).encode("utf-8")
+        else: tt = line
+        res = ice.bloom_check_add(tt, len(tt), 1, _bits, _hashes, _bf)  # 1 = Add
+    del res
+    return _bits, _hashes, _bf
+#==============================================================================
+def dump_bloom_file(output_bloom_file_name, _bits, _hashes, _bf):
+    with open(output_bloom_file_name, 'wb') as f:
+        pickle.dump((_bits, _hashes, _bf), f)
+
+def read_bloom_file(bloom_file_name):
+    '''It will return the 3 output as _bits, _hashes, _bf'''
+    with open(bloom_file_name, 'rb') as f:
+        return pickle.load(f)
+#==============================================================================
+def check_in_bloom(this_line, _bits, _hashes, _bf):
+    if type(this_line) != bytes: tt = str(this_line).encode("utf-8")
+    else: tt = this_line
+    if ice.bloom_check_add(tt, len(tt), 0, _bits, _hashes, _bf) > 0: return True
+    else: return False
+#==============================================================================
+def prepare_bin_file_work(in_file, out_file, lower = False):
+    use0x = False
+    inp_list = [line.split()[0].lower() if lower else line.split()[0] for line in open(in_file,'r')]
+    if inp_list[0][:2] == '0x': use0x = True
+    
+    with open(out_file, 'wb') as f:
+        if use0x:
+            inp_list = [line[2:] for line in inp_list]
+        inp_list.sort()
+        for line in inp_list:
+            f.write(bytes.fromhex(line))
+#==============================================================================
+def prepare_bin_file(in_file, out_file, overwrite = False, lower = False):
+    
+    if os.path.isfile(out_file) == False:
+        prepare_bin_file_work(in_file, out_file, lower)
+
+    else:
+        if not overwrite:
+            print(f'[+] File {out_file} already exist. It will be used as it is...')
+            
+        else:
+            print(f'[+] File {out_file} already exist. Overwriting it...')
+            prepare_bin_file_work(in_file, out_file)
+#==============================================================================
+def Load_data_to_memory(input_bin_file, verbose = False):
+    '''input_bin_file is sorted h160 data of 20 bytes each element. 
+    ETH address can also work without 0x if sorted binary format'''
+    ice.Load_data_to_memory(input_bin_file.encode("utf-8"), verbose)
+    
+#==============================================================================
+def check_collision(h160):
+    ''' h160 is the 20 byte hash to check for collision in data, already loaded in RAM.
+    Use the function Load_data_to_memory before calling this check'''
+    
+    found = ice.check_collision(h160)
+    return found
