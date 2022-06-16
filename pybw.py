@@ -118,9 +118,6 @@ def bw(text):
     f1.append(bitcoin.sha256(text))
     f1.append(bitcoin.sha256(no_bs))
     f1.append(bitcoin.sha256(text_rev))
-    f1.append(bitcoin.dbl_sha256(text))
-    f1.append(bitcoin.dbl_sha256(no_bs))
-    f1.append(bitcoin.dbl_sha256(text_rev))
     for res in f1:
         f2.append(secp256k1_lib.privatekey_to_h160(0, True, int(res,16)))
         f2.append(secp256k1_lib.privatekey_to_h160(0, False, int(res,16)))
@@ -199,12 +196,13 @@ if __name__ == "__main__":
                     for res2 in range(12):
                         co +=1
                         if results[res1][res2] in inf.bf:
-                            pass
-                            # add = results[res1][res2]
+                            add = results[res1][res2]
                             # addr_c = secp256k1_lib.hash_to_address(0, False, bip44_h160_c)
                             # addr_uc = secp256k1_lib.hash_to_address(0, False, bip44_h160_uc)
                             # addr_cs = secp256k1_lib.hash_to_address(1, False, bip44_h160_c)
                             # addr_cbc = secp256k1_lib.hash_to_address(2, False, bip44_h160_c)
+                            hash160 = secp256k1_lib.hash_to_address(0,False,add)
+
                             print(f' \n FOUND ------------------------------------- \n')
 
                 print(f'time: {time.time()-st:.2f}, count: {co}, speed: {int(co/(time.time()-st))}/sec')
@@ -213,5 +211,5 @@ if __name__ == "__main__":
         print ("Caught KeyboardInterrupt, terminating workers")
         pool.terminate()
         pool.join()
-        
+         
     file.close
