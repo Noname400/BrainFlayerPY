@@ -6,7 +6,7 @@
 @GitHub https://github.com/Noname400
 """
 
-from multiprocessing import Pool, freeze_support, cpu_count
+from multiprocessing import Pool, freeze_support, cpu_count, Array
 import sys, time, argparse, logging
 from filter import BloomFilter
 import signal
@@ -21,7 +21,7 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class inf:
-    version:str = '* PY-Brainflayer v0.0.3b *'
+    version:str = '* PY-Brainflayer v1.4 beta *'
     th = 1
     in_file = ''
     balance:bool = False
@@ -105,25 +105,16 @@ def get_balance(address):
         return -1
 
 
-def reverse_string(s):
-    return s[::-1]
-
 def bw(text):
     f1 = []
-    f2 = []
-    co = 0
-    co_count = 0
-    no_bs = text.replace(' ', '')
-    text_rev = reverse_string(text)
-    f1.append(bitcoin.sha256(text))
-    f1.append(bitcoin.sha256(no_bs))
-    f1.append(bitcoin.sha256(text_rev))
-    for res in f1:
-        f2.append(secp256k1_lib.privatekey_to_h160(0, True, int(res,16)))
-        f2.append(secp256k1_lib.privatekey_to_h160(0, False, int(res,16)))
-    return f2
+    pvk = int(bitcoin.sha256(text),16)
+    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, True, pvk)])
+    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, False, pvk)])
+    pvk_d = int(bitcoin.dbl_sha256(text),16)
+    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, True, pvk_d)])
+    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, False, pvk_d)])
+    return f1
         
-
 def load_BF(load):
     try:
         fp = open(load, 'rb')
@@ -135,13 +126,14 @@ def load_BF(load):
         
 if __name__ == "__main__":
     freeze_support()
+    end = False
     inf.th, inf.bf_dir, inf.in_file, inf.mode, inf.balance  = createParser()
     logging.basicConfig(filename='general.log', level=logging.DEBUG, format='[%(asctime)s] - [%(name)s] - [%(levelname)s] - [%(message)s]')
     logging.info(f'Start PY-Brainflayer version {inf.version}')
     print('-'*70,end='\n')
     print('Thank you very much: @iceland2k14 for his libraries!')
 
-    if inf.mode in ('sha256', 'dsha256', 'sha3'):
+    if inf.mode in ('sha256'): #, 'sha3'
         pass
     else:
         print('[E] Wrong mode selected')
@@ -164,6 +156,7 @@ if __name__ == "__main__":
 
     print('-'*70,end='\n')
     print(f'[I] Version: {inf.version}')
+    print(f'[I] Input file: {inf.in_file}')
     print(f'[I] Total kernel of CPU: {cpu_count()}')
     print(f'[I] Used kernel: {inf.th}')
     print(f'[I] Work mode - {inf.mode}')
@@ -178,38 +171,39 @@ if __name__ == "__main__":
     file = open(inf.in_file, "r")
     print('Загрузка словаря...')
     co = 0
-    try:
-        while True:
-            l = []
-            st = time.time()
-            for i in range(50000):
-                line = file.readline().strip()
-                if not line:
-                    sys.exit()
-                l.append(line)
 
-            #print(line.strip())
-            with Pool(inf.th, init_worker) as pool:
-                results = pool.map(bw, l)
-                #print(results)
-                for res1 in range(50000):
-                    for res2 in range(12):
-                        co +=1
-                        if results[res1][res2] in inf.bf:
-                            add = results[res1][res2]
-                            # addr_c = secp256k1_lib.hash_to_address(0, False, bip44_h160_c)
-                            # addr_uc = secp256k1_lib.hash_to_address(0, False, bip44_h160_uc)
-                            # addr_cs = secp256k1_lib.hash_to_address(1, False, bip44_h160_c)
-                            # addr_cbc = secp256k1_lib.hash_to_address(2, False, bip44_h160_c)
-                            hash160 = secp256k1_lib.hash_to_address(0,False,add)
 
-                            print(f' \n FOUND ------------------------------------- \n')
+    while True:
+        l = []
+        list_line = 50000
+        st = time.time()
+        for i in range(list_line):
+            line = file.readline().strip()
+            if not line:
+                print('Конец файла либо в файле есть пустая строка...')
+                end = True
+                list_line = i
+                break
+            l.append(line)
+        with Pool(inf.th, init_worker) as pool:
+            results = pool.map(bw, l)
+            for ii in range(len(results)):
+                for iii in range(len(results[ii])):
+                    #print(results[ii][iii][2].hex())
+                    co +=1
+                    if results[ii][iii][2].hex() in inf.bf:
+                        addr = secp256k1_lib.hash_to_address(0,False,results[ii][iii][2])
+                        if inf.balance: 
+                            bal = get_balance(addr)
+                            if bal > 0.0 : print(f' \n FOUND - {addr}  balance - {bal} word - {results[ii][iii][0]} PVK - {results[ii][iii][1]} \n')
+                        else:
+                            print(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {results[ii][iii][1]} \n')
 
-                print(f'time: {time.time()-st:.2f}, count: {co}, speed: {int(co/(time.time()-st))}/sec')
-                co = 0
-    except (KeyboardInterrupt, SystemExit):
-        print ("Caught KeyboardInterrupt, terminating workers")
-        pool.terminate()
-        pool.join()
-         
-    file.close
+            print(f'time: {time.time()-st:.2f}, count: {co}, speed: {int(co/(time.time()-st))}/sec')
+            co = 0
+            if end: 
+                print ("Файл закончился...")
+                pool.terminate()
+                pool.join()
+                file.close()
+                exit(0)
