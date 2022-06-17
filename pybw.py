@@ -24,6 +24,7 @@ class inf:
     version:str = '* PY-Brainflayer v1.4 beta *'
     th = 1
     in_file = ''
+    mode = 'btc'
     balance:bool = False
     bal_server:list = ['https://api.blockcypher.com/v1/btc/main/addrs/', 'https://rest.bitcoin.com/v2/address/details/', 'https://sochain.com/api/v2/address/BTC/', \
         'https://blockchain.info/rawaddr/']
@@ -31,8 +32,10 @@ class inf:
     bal_srv_count:int = 0
     bal_all_err = 0
     mode:str = ''
-    bf_dir = ''
-    bf:BloomFilter
+    bf_dir_btc = ''
+    bf_btc:BloomFilter
+    bf_dir_eth = ''
+    bf_eth:BloomFilter
     telegram = False
     telegram_err = 0
     #mail
@@ -46,7 +49,7 @@ def createParser ():
     parser.add_argument ('-th', '--threading', action='store', type=int, help='threading', default='1')
     parser.add_argument ('-db', '--database', action='store', type=str, help='File BF', default='')
     parser.add_argument ('-in', '--infile', action='store', type=str, help='infile', default='')
-    parser.add_argument ('-m', '--mode', action='store', type=str, help='mode sha256,dsha256', default='s')
+    parser.add_argument ('-m', '--mode', action='store', type=str, help='mode', default='btc')
     parser.add_argument ('-bal', '--balance', action='store_true', help='check balance')
     return parser.parse_args().threading, parser.parse_args().database, parser.parse_args().infile, parser.parse_args().mode, parser.parse_args().balance
 
@@ -116,12 +119,18 @@ def get_balance(address):
 
 def bw(text):
     f1 = []
-    pvk = int(bitcoin.sha256(text),16)
-    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, True, pvk)])
-    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, False, pvk)])
-    pvk_d = int(bitcoin.dbl_sha256(text),16)
-    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, True, pvk_d)])
-    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, False, pvk_d)])
+    if inf.mode == 'btc':
+        pvk = int(bitcoin.sha256(text),16)
+        f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, True, pvk)])
+        f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, False, pvk)])
+        pvk_d = int(bitcoin.dbl_sha256(text),16)
+        f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, True, pvk_d)])
+        f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, False, pvk_d)])
+    else:
+        pvk = int(bitcoin.sha256(text),16)
+        f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
+        pvk_d = int(bitcoin.dbl_sha256(text),16)
+        f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
     return f1
         
 def load_BF(load):
@@ -136,13 +145,13 @@ def load_BF(load):
 if __name__ == "__main__":
     freeze_support()
     end = False
-    inf.th, inf.bf_dir, inf.in_file, inf.mode, inf.balance  = createParser()
+    inf.th, inf.bf_dir_btc, inf.in_file, inf.mode, inf.balance  = createParser()
     logging.basicConfig(filename='general.log', level=logging.DEBUG, format='[%(asctime)s] - [%(name)s] - [%(levelname)s] - [%(message)s]')
     logging.info(f'Start PY-Brainflayer version {inf.version}')
     print('-'*70,end='\n')
     print('Thank you very much: @iceland2k14 for his libraries!')
 
-    if inf.mode in ('sha256'): #, 'sha3'
+    if inf.mode in ('btc', 'eth'): #, 'sha3'
         pass
     else:
         print('[E] Wrong mode selected')
@@ -175,7 +184,7 @@ if __name__ == "__main__":
     print('-'*70,end='\n')
 
     l = []
-    inf.bf = load_BF(inf.bf_dir)
+    inf.bf_btc = load_BF(inf.bf_dir_btc)
     print('BF загружен...')
     file = open(inf.in_file, "r")
     print('Загрузка словаря...')
@@ -199,7 +208,7 @@ if __name__ == "__main__":
                 for iii in range(len(results[ii])):
                     #print(results[ii][iii][2].hex())
                     co +=1
-                    if results[ii][iii][2].hex() in inf.bf:
+                    if results[ii][iii][2].hex() in inf.bf_btc:
                         addr = secp256k1_lib.hash_to_address(0,False,results[ii][iii][2])
                         if inf.balance: 
                             bal = get_balance(addr)
