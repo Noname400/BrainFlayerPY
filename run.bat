@@ -1,2 +1,2 @@
-python -B pybw.py -th 3 -db btc.bf -in 10-million-combos.txt -m sha256
+python -B pybw.py -th 4 -in sample.txt -m btc
 pause

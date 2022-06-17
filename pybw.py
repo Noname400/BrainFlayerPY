@@ -5,7 +5,7 @@
 @author: Noname400
 @GitHub https://github.com/Noname400
 """
-
+from typing import AnyStr, List, TypeVar, Union
 from multiprocessing import Pool, freeze_support, cpu_count, Array
 import sys, time, argparse, logging
 from filter import BloomFilter
@@ -77,13 +77,14 @@ handler_err = logging.FileHandler(os.path.join(current_path, 'error.log'), 'w' ,
 handler_err.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
 logger_err.addHandler(handler_err)
 
-def normalize_string(txt):
+def normalize_string(txt: AnyStr) -> str:
     if isinstance(txt, bytes):
         utxt = txt.decode("utf8")
-    elif isinstance(txt):
+    elif isinstance(txt, str):
         utxt = txt
     else:
         raise TypeError("String value expected")
+
     return unicodedata.normalize("NFKD", utxt)
 
 def get_balance(address):
@@ -119,18 +120,18 @@ def get_balance(address):
 
 def bw(text):
     f1 = []
-    if inf.mode == 'btc':
-        pvk = int(bitcoin.sha256(text),16)
-        f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, True, pvk)])
-        f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, False, pvk)])
-        pvk_d = int(bitcoin.dbl_sha256(text),16)
-        f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, True, pvk_d)])
-        f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, False, pvk_d)])
-    else:
-        pvk = int(bitcoin.sha256(text),16)
-        f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
-        pvk_d = int(bitcoin.dbl_sha256(text),16)
-        f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
+    # if inf.mode == 'btc':
+    pvk = int(bitcoin.sha256(text),16)
+    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, True, pvk)])
+    f1.append([text,pvk,secp256k1_lib.privatekey_to_h160(0, False, pvk)])
+    pvk_d = int(bitcoin.dbl_sha256(text),16)
+    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, True, pvk_d)])
+    f1.append([text,pvk_d,secp256k1_lib.privatekey_to_h160(0, False, pvk_d)])
+    # else:
+    #     pvk = int(bitcoin.sha256(text),16)
+    #     f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
+    #     pvk_d = int(bitcoin.dbl_sha256(text),16)
+    #     f1.append([text,pvk,secp256k1_lib.privatekey_to_ETH_address(pvk)])
     return f1
         
 def load_BF(load):
@@ -178,7 +179,7 @@ if __name__ == "__main__":
     print(f'[I] Total kernel of CPU: {cpu_count()}')
     print(f'[I] Used kernel: {inf.th}')
     print(f'[I] Work mode - {inf.mode}')
-    print(f'[I] Database Bloom Filter: {inf.bf_dir}')
+    print(f'[I] Database Bloom Filter: {inf.bf_dir_btc}')
     if inf.balance: print('[I] Check balance BTC: On')
     else: print('[I] Check balance: Off')
     print('-'*70,end='\n')
@@ -195,7 +196,8 @@ if __name__ == "__main__":
         list_line = 50000
         st = time.time()
         for i in range(list_line):
-            line = normalize_string(file.readline().strip())
+            tmp = file.readline().strip()
+            line = normalize_string(tmp)
             if not line:
                 print('Конец файла либо в файле есть пустая строка...')
                 end = True
