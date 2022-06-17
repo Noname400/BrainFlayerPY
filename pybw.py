@@ -9,7 +9,7 @@
 from multiprocessing import Pool, freeze_support, cpu_count, Array
 import sys, time, argparse, logging
 from filter import BloomFilter
-import signal
+import signal,unicodedata
 import bitcoin, requests, os
 import secp256k1_lib
 from logging import Formatter
@@ -73,6 +73,15 @@ logger_err.setLevel(logging.DEBUG)
 handler_err = logging.FileHandler(os.path.join(current_path, 'error.log'), 'w' , encoding ='utf-8')
 handler_err.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
 logger_err.addHandler(handler_err)
+
+def normalize_string(txt):
+    if isinstance(txt, bytes):
+        utxt = txt.decode("utf8")
+    elif isinstance(txt):
+        utxt = txt
+    else:
+        raise TypeError("String value expected")
+    return unicodedata.normalize("NFKD", utxt)
 
 def get_balance(address):
     time.sleep(11) 
@@ -172,13 +181,12 @@ if __name__ == "__main__":
     print('Загрузка словаря...')
     co = 0
 
-
     while True:
         l = []
         list_line = 50000
         st = time.time()
         for i in range(list_line):
-            line = file.readline().strip()
+            line = normalize_string(file.readline().strip())
             if not line:
                 print('Конец файла либо в файле есть пустая строка...')
                 end = True
