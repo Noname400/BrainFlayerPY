@@ -143,7 +143,7 @@ if __name__ == "__main__":
     list_line = 50000
     total_count = 0
     total_st = time.time()
-    with codecs.open(inf.in_file, 'r', encoding='utf-8', errors='ignore') as file:
+    with codecs.open(inf.in_file, 'r', encoding='utf-8') as file:
         for line in file:
             line_co += 1
             l.append(line.strip())

@@ -16,8 +16,8 @@ if __name__ == "__main__":
     co = 0
     c=1000
     in_file, out_file  = createParser()
-    out = open(out_file,'a')
-    with open(in_file, 'r', encoding='utf-8', errors='ignore') as file:
+    out = open(out_file,'a', encoding='utf-8')
+    with open(in_file, 'r', encoding='utf-8') as file:
         for line in file:
             line = line.strip()
             #print(str(line))
