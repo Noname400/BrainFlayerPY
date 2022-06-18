@@ -1,5 +1,4 @@
 import sys
-import base58
 import codecs
 import sys, time, argparse, logging
 
@@ -14,20 +13,18 @@ def createParser ():
 
 if __name__ == "__main__":
     co = 0
-    c=1000
+    c=100000
+    coo = 0
     in_file, out_file  = createParser()
-    out = open(out_file,'a', encoding='utf-8')
-    with open(in_file, 'r', encoding='utf-8') as file:
+    out = codecs.open(out_file,'a', encoding='utf-8')
+    with codecs.open(in_file, 'r', encoding='utf-8', errors = 'ignore') as file:
         for line in file:
             line = line.strip()
-            #print(str(line))
-            try:
-                out.write(f'{line}\n')
-            except:
-                continue
+            if line == '' or line == ' ': continue
+            #print(line)
+            out.write(f'{line}\n')
             if co == c:
                 print(co)
                 c += 100000
             co +=1
-              
     out.close

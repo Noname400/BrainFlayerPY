@@ -32,7 +32,7 @@ def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class inf:
-    version:str = '* PY-Brainflayer v2.0 ETH*'
+    version:str = '* PY-Brainflayer v2.1 ETH*'
     th = 1
     in_file = ''
     balance:bool = False

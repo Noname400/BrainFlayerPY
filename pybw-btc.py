@@ -18,14 +18,12 @@ from logging import Formatter
 current_path = os.path.dirname(os.path.realpath(__file__))
 logger_found = logging.getLogger('FOUND')
 logger_found.setLevel(logging.INFO)
-handler_found = logging.FileHandler(os.path.join(current_path, 'log/found.log'), 'a' , encoding ='utf-8')
-handler_found.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
+handler_found = logging.FileHandler(os.path.join(current_path+'/log', 'found.log'), 'a' , encoding ='utf-8')
 logger_found.addHandler(handler_found)
 
 logger_err = logging.getLogger('ERROR')
 logger_err.setLevel(logging.DEBUG)
-handler_err = logging.FileHandler(os.path.join(current_path, 'log/error.log'), 'w' , encoding ='utf-8')
-handler_err.setFormatter(Formatter(fmt='[%(asctime)s: %(levelname)s] %(message)s'))
+handler_err = logging.FileHandler(os.path.join(current_path+'/log', 'error.log'), 'w' , encoding ='utf-8')
 logger_err.addHandler(handler_err)
 
 def init_worker():
