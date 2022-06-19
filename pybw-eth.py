@@ -10,6 +10,8 @@ from multiprocessing import Pool, freeze_support, cpu_count, Array
 import sys, time, argparse, logging
 from libraries.filter import BloomFilter
 import codecs
+import sha3
+import hashlib
 import signal
 import requests, os
 from libraries.secp256k1_lib import privatekey_to_h160, privatekey_to_ETH_address, hash_to_address, pubkey_to_h160, get_sha256
@@ -81,7 +83,21 @@ def bw(text):
     f1 = []
     sha = get_sha256(text.encode("utf-8"))
     pvk = int(sha.hex(),16)
+    # print(f'get_sha256  {pvk}')
     f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
+    
+    s = hashlib.sha3_256()
+    s.update(text.encode('utf8'))
+    pvk=int(s.hexdigest(),16)
+    #print(f'sha3_256  {pvk}')
+    f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
+    
+    s = sha3.keccak_256()
+    s.update(text.encode('utf8'))
+    pvk=int(s.hexdigest(),16)
+    #print(f'keccak_256  {pvk}')
+    f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
+
     return f1
 
 def load_BF(load):

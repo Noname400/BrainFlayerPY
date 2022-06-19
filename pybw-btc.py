@@ -12,6 +12,8 @@ from libraries.filter import BloomFilter
 import codecs
 import signal
 import requests, os
+import sha3
+import hashlib
 from libraries.secp256k1_lib import privatekey_to_h160, privatekey_to_ETH_address, hash_to_address, pubkey_to_h160, get_sha256
 from logging import Formatter
 
@@ -85,8 +87,24 @@ def bw(text):
     f1 = []
     sha = get_sha256(text.encode("utf-8"))
     pvk = int(sha.hex(),16)
+    # print(f'get_sha256  {pvk}')
     f1.append([text,pvk,privatekey_to_h160(0, False, pvk)])
     f1.append([text,pvk,privatekey_to_h160(0, True, pvk)])
+    
+    s = hashlib.sha3_256()
+    s.update(text.encode('utf8'))
+    pvk=int(s.hexdigest(),16)
+    #print(f'sha3_256  {pvk}')
+    f1.append([text,pvk,privatekey_to_h160(0, False, pvk)])
+    f1.append([text,pvk,privatekey_to_h160(0, True, pvk)])
+    
+    s = sha3.keccak_256()
+    s.update(text.encode('utf8'))
+    pvk=int(s.hexdigest(),16)
+    #print(f'keccak_256  {pvk}')
+    f1.append([text,pvk,privatekey_to_h160(0, False, pvk)])
+    f1.append([text,pvk,privatekey_to_h160(0, True, pvk)])
+
     return f1
 
 def load_BF(load):
@@ -113,7 +131,7 @@ if __name__ == "__main__":
 
     if inf.th < 1:
         print('[E] The number of processes must be greater than 0')
-        exit(1)
+        inf.th = 1
 
     if inf.th > cpu_count():
         print('[I] The specified number of processes exceeds the allowed')
@@ -153,6 +171,7 @@ if __name__ == "__main__":
                     results = pool.map(bw, l)
                     for ii in range(len(results)):
                         for iii in range(len(results[ii])):
+                            #print(results[ii][iii][2].hex())
                             if results[ii][iii][2].hex() in inf.bf:
                                 addr = hash_to_address(0,False,results[ii][iii][2])
                                 if inf.balance: 
@@ -163,8 +182,7 @@ if __name__ == "__main__":
                                     print(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
                                     logger_found.info(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
                             co += 1
-                print(f'Total time: {time.time()-total_st:.2f}, count: {total_count}, speed: {int(co/(time.time()-st))}/sec')
-
+                print(f'Total time: {time.time()-total_st:.2f}, count: {total_count}, speed: {int(co/(time.time()-st))} key/sec')
                 co = 0
                 l = []
                 pool.terminate()

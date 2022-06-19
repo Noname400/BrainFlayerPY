@@ -1,2 +1,2 @@
-python .\merge.py -in realhuman_phill.txt -out 1.txt
+python .\merge.py -in 10-million-combos.txt -out out.txt
 pause
