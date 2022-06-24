@@ -22,26 +22,21 @@ init(autoreset = True)
 current_path = os.path.dirname(os.path.realpath(__file__))
 logger_found = logging.getLogger('FOUND')
 logger_found.setLevel(logging.INFO)
-handler_found = logging.FileHandler(os.path.join(current_path, 'log/found.log'), 'a' , encoding ='utf-8')
+handler_found = logging.FileHandler(os.path.join(current_path+'/log', 'log/found.log'), 'a' , encoding ='utf-8')
 logger_found.addHandler(handler_found)
 
 logger_err = logging.getLogger('ERROR')
 logger_err.setLevel(logging.DEBUG)
-handler_err = logging.FileHandler(os.path.join(current_path, 'log/error.log'), 'w' , encoding ='utf-8')
+handler_err = logging.FileHandler(os.path.join(current_path+'/log', 'log/error.log'), 'w' , encoding ='utf-8')
 logger_err.addHandler(handler_err)
 
 def init_worker():
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 class inf:
-    version:str = '* PY-Brainflayer v2.2 ETH*'
+    version:str = '* PY-Brainflayer v2.3 ETH*'
     th = 1
     in_file = ''
-    balance:bool = False
-    ETH_bal_server:list = ['https://api.blockchair.com/ethereum/dashboards/address/','https://api.etherscan.io/api?module=account&action=balance&address=']
-    bal_srv_count:int = 0
-    bal_all_err = 0
-    bal_err = 0
     mode:str = ''
     bf_dir = ''
     bf:BloomFilter
@@ -51,53 +46,15 @@ def createParser ():
     parser.add_argument ('-th', '--threading', action='store', type=int, help='threading', default='1')
     parser.add_argument ('-db', '--database', action='store', type=str, help='File BF', default='')
     parser.add_argument ('-in', '--infile', action='store', type=str, help='infile', default='')
-    parser.add_argument ('-bal', '--balance', action='store_true', help='check balance')
-    return parser.parse_args().threading, parser.parse_args().database, parser.parse_args().infile, parser.parse_args().balance
-
-def get_balance(address):
-    time.sleep(11) 
-    try:
-        try:
-            response = requests.get(inf.ETH_bal_server[1] + '0x' + address)
-            return int(response.json()['result'])
-        except:
-            print('[E][ETH] NOT connect balance server')
-            logger_err.error('[E][ETH] NOT connect balance server')
-            return -1
-    except:
-        logger_err.error('[E] NOT connect balance server')
-        print('[E] NOT connect balance server')
-        if inf.bal_err < 10:
-            inf.bal_err += 1
-        else:
-            if inf.bal_srv_count < 3:
-                inf.bal_srv_count += 1
-            else:
-                inf.bal_srv_count = 0
-        inf.bal_all_err += 1
-        if inf.bal_all_err == 40:
-            inf.balance = False
-        return -1
+    return parser.parse_args().threading, parser.parse_args().database, parser.parse_args().infile
 
 def bw(text):
     f1 = []
-    sha = get_sha256(text.encode("utf-8"))
-    pvk = int(sha.hex(),16)
-    # print(f'get_sha256  {pvk}')
-    f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
-    
-    s = hashlib.sha3_256()
-    s.update(text.encode('utf8'))
-    pvk=int(s.hexdigest(),16)
-    #print(f'sha3_256  {pvk}')
-    f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
-    
     s = sha3.keccak_256()
     s.update(text.encode('utf8'))
     pvk=int(s.hexdigest(),16)
     #print(f'keccak_256  {pvk}')
     f1.append([text,pvk,privatekey_to_ETH_address(pvk)])
-
     return f1
 
 def load_BF(load):
@@ -112,7 +69,7 @@ def load_BF(load):
 if __name__ == "__main__":
     freeze_support()
     end = False
-    inf.th, inf.bf_dir, inf.in_file, inf.balance  = createParser()
+    inf.th, inf.bf_dir, inf.in_file  = createParser()
     print('-'*70,end='\n')
     print('Thank you very much: @iceland2k14 for his libraries!')
 
@@ -137,8 +94,6 @@ if __name__ == "__main__":
     print(f'[I] Total kernel of CPU: {cpu_count()}')
     print(f'[I] Used kernel: {inf.th}')
     print(f'[I] Database Bloom Filter: {inf.bf_dir}')
-    if inf.balance: print('[I] Check balance BTC: On')
-    else: print('[I] Check balance: Off')
     print('-'*70,end='\n')
 
     l = []
@@ -167,13 +122,8 @@ if __name__ == "__main__":
                             #print(results[ii][iii][2][2:])
                             if results[ii][iii][2][2:] in inf.bf:
                                 addr = results[ii][iii][2]
-                                if inf.balance: 
-                                    bal = get_balance(addr)
-                                    print(f' \n FOUND - {addr}  balance - {bal} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
-                                    logger_found.info(f' \n FOUND - {addr}  balance - {bal} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
-                                else:
-                                    print(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
-                                    logger_found.info(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
+                                print(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
+                                logger_found.info(f' \n FOUND - {addr} word - {results[ii][iii][0]} PVK - {hex(results[ii][iii][1])} \n')
                         co += 1
                 print(f'Total time: {time.time()-total_st:.2f}, count: {total_count}, speed: {int(co/(time.time()-st))}/sec')
 
